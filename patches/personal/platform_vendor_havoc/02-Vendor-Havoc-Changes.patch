@@ -1,0 +1,141 @@
+From edd21b1e1521f4227cd47e47582acfdb09ed026e Mon Sep 17 00:00:00 2001
+From: ChonDoe <thphantomblog@gmail.com>
+Date: Mon, 6 Feb 2023 00:20:07 +0000
+Subject: [PATCH] Vendor Changos
+
+---
+ build/envsetup.sh | 17 +++++++++++++++++
+ config/common.mk  | 30 +++++-------------------------
+ config/phh_gsi.mk | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 25 deletions(-)
+ create mode 100644 config/phh_gsi.mk
+
+diff --git a/build/envsetup.sh b/build/envsetup.sh
+index 5b93927f..7d1a9014 100644
+--- a/build/envsetup.sh
++++ b/build/envsetup.sh
+@@ -621,3 +621,20 @@ function fixup_common_out_dir() {
+         mkdir -p ${common_out_dir}
+     fi
+ }
++
++# Check and set ccache path on envsetup
++if [ -z ${CCACHE_EXEC} ]; then
++	ccache_path=$(which ccache)
++	if [ ! -z "$ccache_path" ]; then
++		mkdir /mnt/ccache
++		mount --bind ~/.ccache /mnt/ccache
++		export USE_CCACHE=1
++		export CCACHE_COMPRESS=1
++		export CCACHE_EXEC=/usr/bin/ccache
++		export CCACHE_DIR=/mnt/ccache
++		ccache -M 50G -F 0
++		echo "ccache found and CCACHE_EXEC has been set to : $ccache_path"
++	else
++		echo "ccache not found/installed!"
++	fi
++fi
+diff --git a/config/common.mk b/config/common.mk
+index 9b62d01f..f50e19c5 100644
+--- a/config/common.mk
++++ b/config/common.mk
+@@ -3,6 +3,9 @@ $(call inherit-product-if-exists, vendor/extra/product.mk)
+ 
+ PRODUCT_BRAND ?= Havoc-OS
+ 
++# PHH GSI
++$(call inherit-product, vendor/havoc/config/phh_gsi.mk)
++
+ PRODUCT_BUILD_PROP_OVERRIDES += BUILD_UTC_DATE=0
+ 
+ ifeq ($(PRODUCT_GMS_CLIENTID_BASE),)
+@@ -25,17 +28,6 @@ PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
+     persist.sys.disable_rescue=true \
+     ro.setupwizard.rotation_locked=true
+ 
+-ifeq ($(TARGET_BUILD_VARIANT),eng)
+-# Disable ADB authentication
+-PRODUCT_SYSTEM_DEFAULT_PROPERTIES += ro.adb.secure=0
+-else
+-# Enable ADB authentication
+-PRODUCT_SYSTEM_DEFAULT_PROPERTIES += ro.adb.secure=1
+-
+-# Disable extra StrictMode features on all non-engineering builds
+-PRODUCT_SYSTEM_DEFAULT_PROPERTIES += persist.sys.strictmode.disable=true
+-endif
+-
+ # Blur
+ PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
+     ro.sf.blurs_are_expensive=1 \
+@@ -116,15 +108,13 @@ PRODUCT_PRODUCT_PROPERTIES += \
+ 	ro.input.video_enabled=false
+ 
+ # Bootanimation
+-TARGET_SCREEN_WIDTH ?= 1080
+-TARGET_SCREEN_HEIGHT ?= 1920
++TARGET_SCREEN_WIDTH ?= 720
++TARGET_SCREEN_HEIGHT ?= 1080
+ PRODUCT_PACKAGES += \
+     bootanimation.zip
+ 
+ # AOSP packages
+ PRODUCT_PACKAGES += \
+-    ExactCalculator \
+-    Exchange2 \
+     Terminal \
+     ThemePicker
+ 
+@@ -226,16 +216,6 @@ USE_CCACHE := true
+ PRODUCT_PACKAGES += \
+     sqlite3
+ 
+-# GApps
+-ifeq ($(WITH_GAPPS),true)
+-$(call inherit-product, vendor/havoc/config/gapps.mk)
+-else
+-PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += vendor/havoc/overlay-aosp
+-DEVICE_PACKAGE_OVERLAYS += vendor/havoc/overlay-aosp/common
+-PRODUCT_PACKAGES += \
+-    GalleryGoPrebuilt
+-endif
+-
+ # Face Unlock
+ TARGET_FACE_UNLOCK_SUPPORTED ?= true
+ ifeq ($(TARGET_FACE_UNLOCK_SUPPORTED),true)
+diff --git a/config/phh_gsi.mk b/config/phh_gsi.mk
+new file mode 100644
+index 00000000..f43ba763
+--- /dev/null
++++ b/config/phh_gsi.mk
+@@ -0,0 +1,28 @@
++# The Gapps
++$(call inherit-product, vendor/gapps/config.mk)
++
++HAVOC_BUILD := Treble
++
++# Blur
++TARGET_USES_BLUR := true
++
++# Secure Build
++PHH-SECURE_BUILD := false
++BOARD_EXT4_SHARE_DUP_BLOCKS := false
++
++# Don't Build Kernel
++TARGET_NO_KERNEL := true
++TARGET_NO_KERNEL_OVERRIDE := true
++
++# Use CCache
++USE_CCACHE := true
++
++PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
++	dalvik.vm.dex2oat64.enabled=true \
++	persist.sys.binary_xml=false \
++	ro.havoc.maintainer=ChonDoe \
++	ro.havoc.maintainer.username=ChonDoe \
++	persist.pixelpropsutils.spoof_netflix=false
++
++# APNS
++PRODUCT_PACKAGES += apns-conf.xml
+-- 
+2.34.1
+
